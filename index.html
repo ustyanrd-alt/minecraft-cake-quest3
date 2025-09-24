@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Квест: скрафть торт</title>
+  <title>квест: скрафть свой торт!</title>
   <style>
     body {
       margin: 0;
@@ -26,12 +26,12 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin: 10px;
+      margin: 8px;
     }
 
     .grid {
-      width: 300px;
-      height: 300px;
+      width: 400px;
+      height: 400px;
       background: url("grid-bg.png") no-repeat center center;
       background-size: contain;
       display: grid;
@@ -142,9 +142,9 @@
 
       if (JSON.stringify(layout) === JSON.stringify(correct)) {
         result.innerHTML = `
-          ✅ Ура! Ты скрафтила торт! <br>
+          ✅ Ура! Ты скрафтила свой торт! Дню рождения быть! <br>
           <img src="cake.png" alt="cake" style="width:64px;height:64px;margin:10px;"><br>
-          🎉 Подсказка: следующая тайна ждёт тебя под столом!
+          🎉 для следующего задания напиши в директ подсказка 2
         `;
       }
     }
