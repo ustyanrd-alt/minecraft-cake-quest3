@@ -132,11 +132,12 @@ function updateAndCheck(){
   checkRecipe(layout);
 }
 
-/* --- Для каждого item: pointerdrag + dragstart (desktop) + tap-to-place --- */
+/* --- pointer drag (touch & mouse) для мобил/тач --- */
 items.forEach(item => {
-  // pointerdown для тача/мыши (перетаскивание)
+  // pointerdown стартует drag-процесс
   item.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    // начинаем drag
     currentDrag.type = item.dataset.item || item.alt || null;
     currentDrag.src = item.src;
 
@@ -166,31 +167,24 @@ items.forEach(item => {
       }
     }
 
-    const clearGhost = () => {
-      if(currentDrag.ghost && currentDrag.ghost.parentNode){
-        currentDrag.ghost.remove();
-      }
-      currentDrag = { type: null, src: null, ghost: null };
-    };
-
     const onMove = (ev) => moveGhost(ev.clientX, ev.clientY);
     const onUp = (ev) => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
+      // найдём слот под указателем
       const el = document.elementFromPoint(ev.clientX, ev.clientY);
       const slot = el ? el.closest('.slot') : null;
       if (slot) {
         placeImageInSlot(slot, currentDrag.type, currentDrag.src);
       }
-      clearGhost();
+      // удаляем ghost
+      if(currentDrag.ghost && currentDrag.ghost.parentNode) currentDrag.ghost.remove();
+      currentDrag = { type: null, src: null, ghost: null };
     };
 
     document.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerup', onUp);
-
-    // страховка: если тапнули вне (например скролл/отмена) → убрать ghost
-    document.addEventListener('pointercancel', clearGhost, { once: true });
-  }, { passive: false });
+  });
 
   // desktop fallback: классический dragstart (для мыши)
   item.addEventListener('dragstart', (e) => {
@@ -203,13 +197,12 @@ items.forEach(item => {
   item.addEventListener('click', (e) => {
     selectedType = item.dataset.item || item.alt || null;
     selectedSrc = item.src;
-    // можно подсветить выбранный элемент, если захочешь
-    items.forEach(i => i.classList.toggle('selected', i === item));
+    // (вставь визуал для выбранного, если хочешь)
   });
 });
 
 /* --- обработчики drop для слотов (desktop drag & drop) --- */
-slots.forEach((slot) => {
+slots.forEach((slot, idx) => {
   slot.addEventListener('dragover', e => e.preventDefault());
   slot.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -225,7 +218,6 @@ slots.forEach((slot) => {
       placeImageInSlot(slot, selectedType, selectedSrc);
       selectedType = null;
       selectedSrc = null;
-      items.forEach(i => i.classList.remove('selected'));
       return;
     }
     // если нет выбора — очистить слот при клике
@@ -250,9 +242,9 @@ function checkRecipe(layout) {
   // если всё совпало
   if (JSON.stringify(layout) === JSON.stringify(correct)) {
     result.innerHTML = `
-      ✅ Ура! Ты скрафтила торт! День рождению быть! <br>
+      ✅ Ура! Ты скрафтила торт! Дню рождения быть! <br>
       <img src="cake.png" alt="cake" style="width:64px;height:64px;margin:10px;"><br>
-      🎉 А теперь напиши в директ подсказка 2, если хочешь продолжить
+      🎉 Если хочешь дальше продолжить, напиши в директ подсказка2
     `;
     attempts = 0;
     return;
