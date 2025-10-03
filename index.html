@@ -109,6 +109,7 @@
     const result = document.getElementById("result");
 
     let draggedItem = null;
+    let attempts = 0;
 
     items.forEach(item => {
       item.addEventListener("dragstart", () => {
@@ -146,8 +147,22 @@
           <img src="cake.png" alt="cake" style="width:64px;height:64px;margin:10px;"><br>
           🎉 для следующего задания напиши в директ подсказка 2
         `;
-      }
+  } else if (layout.some(x => x !== null)) { 
+    // если что-то поставлено, но рецепт не совпадает
+    attempts++;
+    if (attempts < 4) {
+      result.innerHTML = "❌ Не верно! Попробуй ещё раз, иначе день рождения будет без торта!";
+    } else if (attempts === 4) {
+      result.innerHTML = `
+        ❌ Не верно!<br>
+        💡 Подсказываю:<br>
+        молоко-молоко-молоко<br>
+        сахар-яйцо-сахар<br>
+        пшеница-пшеница-пшеница
+      `;
     }
+  }
+}
   </script>
 </body>
 </html>
