@@ -134,10 +134,8 @@ function updateAndCheck(){
 
 /* --- pointer drag (touch & mouse) для мобил/тач --- */
 items.forEach(item => {
-  // pointerdown стартует drag-процесс
   item.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    // начинаем drag
     currentDrag.type = item.dataset.item || item.alt || null;
     currentDrag.src = item.src;
 
@@ -167,24 +165,32 @@ items.forEach(item => {
       }
     }
 
+    const clearGhost = () => {
+      if(currentDrag.ghost && currentDrag.ghost.parentNode){
+        currentDrag.ghost.remove();
+      }
+      currentDrag = { type: null, src: null, ghost: null };
+    };
+
     const onMove = (ev) => moveGhost(ev.clientX, ev.clientY);
     const onUp = (ev) => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
-      // найдём слот под указателем
       const el = document.elementFromPoint(ev.clientX, ev.clientY);
       const slot = el ? el.closest('.slot') : null;
       if (slot) {
         placeImageInSlot(slot, currentDrag.type, currentDrag.src);
       }
-      // удаляем ghost
-      if(currentDrag.ghost && currentDrag.ghost.parentNode) currentDrag.ghost.remove();
-      currentDrag = { type: null, src: null, ghost: null };
+      clearGhost();
     };
 
     document.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerup', onUp);
+
+    // страховка: если тапнули вне (например скролл/отмена) → убрать ghost
+    document.addEventListener('pointercancel', clearGhost, { once: true });
   });
+});
 
   // desktop fallback: классический dragstart (для мыши)
   item.addEventListener('dragstart', (e) => {
