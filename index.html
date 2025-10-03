@@ -103,35 +103,134 @@
     Перетащи предметы в сетку по рецепту!
   </div>
 
-  <script>
-    const slots = document.querySelectorAll(".slot");
-    const items = document.querySelectorAll(".item");
-    const result = document.getElementById("result");
+<script>
+/* Универсальный скрипт: pointer drag (mobile) + HTML5 drag (desktop) + tap-to-place */
+const slots = Array.from(document.querySelectorAll('.slot'));
+const items = Array.from(document.querySelectorAll('.item'));
+const result = document.getElementById('result');
 
-    let draggedItem = null;
-    let attempts = 0;
+let attempts = 0;               // счётчик неверных полных попыток
+let selectedType = null;        // для tap-to-place
+let selectedSrc = null;
+let currentDrag = { type: null, src: null, ghost: null };
 
-    items.forEach(item => {
-      item.addEventListener("dragstart", () => {
-        draggedItem = item.cloneNode(true);
-      });
-    });
+/* --- helper: положить картинку в слот и обновить состояние --- */
+function placeImageInSlot(slot, type, src) {
+  if (!slot) return;
+  slot.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = type || '';
+  img.draggable = false;
+  slot.appendChild(img);
+  updateAndCheck();
+}
 
-    slots.forEach(slot => {
-      slot.addEventListener("dragover", e => e.preventDefault());
-      slot.addEventListener("drop", e => {
-        e.preventDefault();
-        slot.innerHTML = "";
-        slot.appendChild(draggedItem);
-        checkRecipe();
-      });
-    });
+/* --- собрать текущую раскладку и вызвать проверку --- */
+function updateAndCheck(){
+  const layout = slots.map(s => s.querySelector('img') ? s.querySelector('img').alt : null);
+  checkRecipe(layout);
+}
 
-    function checkRecipe() {
-  const layout = Array.from(slots).map(slot => {
-    return slot.children.length > 0 ? slot.children[0].alt : null;
+/* --- pointer drag (touch & mouse) для мобил/тач --- */
+items.forEach(item => {
+  // pointerdown стартует drag-процесс
+  item.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    // начинаем drag
+    currentDrag.type = item.dataset.item || item.alt || null;
+    currentDrag.src = item.src;
+
+    // создаём ghost
+    const ghost = document.createElement('div');
+    ghost.style.position = 'fixed';
+    ghost.style.left = '0px';
+    ghost.style.top = '0px';
+    ghost.style.width = '84px';
+    ghost.style.height = '84px';
+    ghost.style.transform = 'translate(-50%,-50%)';
+    ghost.style.zIndex = 9999;
+    ghost.style.pointerEvents = 'none';
+    const gi = document.createElement('img');
+    gi.src = currentDrag.src;
+    gi.style.width = '100%';
+    gi.style.height = '100%';
+    gi.style.objectFit = 'contain';
+    ghost.appendChild(gi);
+    document.body.appendChild(ghost);
+    currentDrag.ghost = ghost;
+
+    function moveGhost(clientX, clientY){
+      if(currentDrag.ghost){
+        currentDrag.ghost.style.left = clientX + 'px';
+        currentDrag.ghost.style.top = clientY + 'px';
+      }
+    }
+
+    const onMove = (ev) => moveGhost(ev.clientX, ev.clientY);
+    const onUp = (ev) => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      // найдём слот под указателем
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const slot = el ? el.closest('.slot') : null;
+      if (slot) {
+        placeImageInSlot(slot, currentDrag.type, currentDrag.src);
+      }
+      // удаляем ghost
+      if(currentDrag.ghost && currentDrag.ghost.parentNode) currentDrag.ghost.remove();
+      currentDrag = { type: null, src: null, ghost: null };
+    };
+
+    document.addEventListener('pointermove', onMove, { passive: true });
+    document.addEventListener('pointerup', onUp);
   });
 
+  // desktop fallback: классический dragstart (для мыши)
+  item.addEventListener('dragstart', (e) => {
+    const type = item.dataset.item || item.alt || '';
+    e.dataTransfer.setData('text/plain', type);
+    e.dataTransfer.setData('img', item.src);
+  });
+
+  // tap-to-place (если пользователь просто тапнул — выбираем)
+  item.addEventListener('click', (e) => {
+    selectedType = item.dataset.item || item.alt || null;
+    selectedSrc = item.src;
+    // (вставь визуал для выбранного, если хочешь)
+  });
+});
+
+/* --- обработчики drop для слотов (desktop drag & drop) --- */
+slots.forEach((slot, idx) => {
+  slot.addEventListener('dragover', e => e.preventDefault());
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('text/plain') || null;
+    const src = e.dataTransfer.getData('img') || null;
+    if (src) placeImageInSlot(slot, type, src);
+  });
+
+  // click on slot: если есть выбранный item (tap-to-place) — поставить,
+  // иначе если слот заполнен — очистить
+  slot.addEventListener('click', (e) => {
+    if (selectedType && selectedSrc) {
+      placeImageInSlot(slot, selectedType, selectedSrc);
+      selectedType = null;
+      selectedSrc = null;
+      return;
+    }
+    // если нет выбора — очистить слот при клике
+    const img = slot.querySelector('img');
+    if (img) {
+      slot.innerHTML = '';
+      updateAndCheck();
+    }
+  });
+});
+
+/* --- логика проверки рецепта и попыток --- */
+function checkRecipe(layout) {
   const correct = [
     "milk","milk","milk",
     "sugar","egg","sugar",
@@ -140,42 +239,38 @@
 
   const allFilled = layout.every(v => v !== null);
 
-  // Если полностью совпало — успешный крафт
+  // если всё совпало
   if (JSON.stringify(layout) === JSON.stringify(correct)) {
     result.innerHTML = `
       ✅ Ура! Ты скрафтила торт! <br>
       <img src="cake.png" alt="cake" style="width:64px;height:64px;margin:10px;"><br>
       🎉 Подсказка: следующая тайна ждёт тебя под столом!
     `;
-    attempts = 0; // сбрасываем счётчик после успеха
+    attempts = 0;
     return;
   }
 
-  // Если не все клетки заполнены — ничего не показываем (ещё попытка не завершена)
-  if (!allFilled) {
-    return;
-  }
+  // если не все заполнены — не считаем попытку
+  if (!allFilled) return;
 
-  // Все 9 заполнены, но комбинация неверная — увеличиваем попытки и показываем сообщение
+  // все 9 заполнены, но неверно — учитываем попытку
   attempts++;
   if (attempts < 4) {
     result.innerHTML = "❌ Не верно! Попробуй ещё раз, иначе день рождения будет без торта!";
   } else {
     result.innerHTML = `
       ❌ Не верно!<br>
-      💡 Подсказываю:<br>
+      💡 Подсказка:<br>
       молоко-молоко-молоко<br>
       сахар-яйцо-сахар<br>
       пшеница-пшеница-пшеница
     `;
-    // если хочешь, чтобы после подсказки счётчик снова начинался с 0, раскомментируй:
-    // attempts = 0;
+    // attempts = 0; // если хочешь сброс после подсказки — раскомментируй
   }
 
-  // (Опционально) если хочешь автоматически очищать сетку после неверной полной попытки,
-  // раскомментируй следующую строку:
+  // опционально: автоочистка сетки после неверной полной попытки
   // if (allFilled) slots.forEach(s => s.innerHTML = '');
 }
-  </script>
+</script>
 </body>
 </html>
