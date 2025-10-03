@@ -132,8 +132,9 @@ function updateAndCheck(){
   checkRecipe(layout);
 }
 
-/* --- pointer drag (touch & mouse) для мобил/тач --- */
+/* --- Для каждого item: pointerdrag + dragstart (desktop) + tap-to-place --- */
 items.forEach(item => {
+  // pointerdown для тача/мыши (перетаскивание)
   item.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     currentDrag.type = item.dataset.item || item.alt || null;
@@ -189,8 +190,7 @@ items.forEach(item => {
 
     // страховка: если тапнули вне (например скролл/отмена) → убрать ghost
     document.addEventListener('pointercancel', clearGhost, { once: true });
-  });
-});
+  }, { passive: false });
 
   // desktop fallback: классический dragstart (для мыши)
   item.addEventListener('dragstart', (e) => {
@@ -203,12 +203,13 @@ items.forEach(item => {
   item.addEventListener('click', (e) => {
     selectedType = item.dataset.item || item.alt || null;
     selectedSrc = item.src;
-    // (вставь визуал для выбранного, если хочешь)
+    // можно подсветить выбранный элемент, если захочешь
+    items.forEach(i => i.classList.toggle('selected', i === item));
   });
 });
 
 /* --- обработчики drop для слотов (desktop drag & drop) --- */
-slots.forEach((slot, idx) => {
+slots.forEach((slot) => {
   slot.addEventListener('dragover', e => e.preventDefault());
   slot.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -224,6 +225,7 @@ slots.forEach((slot, idx) => {
       placeImageInSlot(slot, selectedType, selectedSrc);
       selectedType = null;
       selectedSrc = null;
+      items.forEach(i => i.classList.remove('selected'));
       return;
     }
     // если нет выбора — очистить слот при клике
@@ -248,9 +250,9 @@ function checkRecipe(layout) {
   // если всё совпало
   if (JSON.stringify(layout) === JSON.stringify(correct)) {
     result.innerHTML = `
-      ✅ Ура! Ты скрафтила торт! <br>
+      ✅ Ура! Ты скрафтила торт! День рождению быть! <br>
       <img src="cake.png" alt="cake" style="width:64px;height:64px;margin:10px;"><br>
-      🎉 Подсказка: следующая тайна ждёт тебя под столом!
+      🎉 А теперь напиши в директ подсказка 2, если хочешь продолжить
     `;
     attempts = 0;
     return;
